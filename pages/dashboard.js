@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"; // React hooks for state and lifecy
 import { useContract } from "@thirdweb-dev/react"; // Thirdweb hook for smart contract interaction
 import Link from "next/link"; // Next.js component for client-side navigation
 import styles from "../styles/Home.module.css"; // CSS module for shared styles
+import Image from "next/image"
 
 // ABI for the migration contract, defining its view functions
 const MIGRATION_ABI = [
@@ -33,69 +34,111 @@ export default function Dashboard() {
   const [whitelistAddress, setWhitelistAddress] = useState(""); // User-input address to check whitelist status
   const [whitelistResult, setWhitelistResult] = useState(null); // Result of whitelist check (true/false)
   const [burnAddressBalance, setBurnAddressBalance] = useState(null); // Balance of old tokens at burn address
+  const [hasFetched, setHasFetched] = useState(false); // Flag to ensure fetch runs only once initially
 
   // Constant for total KILT supply, used to calculate migration progress percentage
   const TOTAL_KILT_SUPPLY = 164000000;
 
   // Thirdweb hooks to connect to the smart contracts
   const { contract: migrationContract, isLoading: migrationLoading } = useContract(
-    "0xF92e735Fd5410Ccd7710Af0C0897F7389A39C303", // Migration contract address
+    "0x4A62F30d95a8350Fc682642A455B299C074B3B8c", // Migration contract address
     MIGRATION_ABI
   );
   const { contract: oldKiltContract, isLoading: oldKiltLoading } = useContract(
-    "0x944f601b4b0edb54ad3c15d76cd9ec4c3df7b24b", // Old KILT token address
+    "0x9E5189a77f698305Ef76510AFF1C528cff48779c", // Old KILT token address
     OLD_KILT_ABI
   );
 
   // Function to fetch all contract data except whitelist status
   const fetchAllData = async () => {
+    console.log("fetchAllData triggered at:", new Date().toISOString());
     // Ensure both contracts are loaded before fetching
-    if (!migrationContract || !oldKiltContract) return;
+    if (!migrationContract || !oldKiltContract) {
+      console.log("Contracts not ready, skipping fetchAllData");
+      return;
+    }
 
-    try {
-      // Fetch burn address and set state
-      const burnAddr = await migrationContract.call("BURN_ADDRESS");
-      setBurnAddress(burnAddr);
+    // Mark that we've attempted to fetch
+    setHasFetched(true);
 
-      // Fetch exchange rate numerator (e.g., 175) and convert to string for display
-      const numerator = await migrationContract.call("EXCHANGE_RATE_NUMERATOR");
-      setExchangeRateNumerator(numerator.toString());
+    // Helper function to handle individual contract calls with retries and error handling
+    const callContract = async (setter, currentValue, contract, method, args = [], retries = 3) => {
+      // Skip if the current value is already successfully loaded (not null or "Error")
+      if (currentValue !== null && currentValue !== "Error") {
+        console.log(`Skipping ${method} as it already has value:`, currentValue);
+        return currentValue;
+      }
 
-      // Fetch exchange rate denominator (e.g., 100) and convert to string
-      const denominator = await migrationContract.call("EXCHANGE_RATE_DENOMINATOR");
-      setExchangeRateDenominator(denominator.toString());
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const result = await contract.call(method, args);
+          setter(result); // Set the state with the result
+          console.log(`Success for ${method} on attempt ${attempt}:`, result);
+          return result;
+        } catch (err) {
+          console.error(`Attempt ${attempt} failed for ${method}:`, err.message);
+          if (attempt === retries) {
+            console.error(`All ${retries} attempts failed for ${method}`);
+            setter("Error"); // Set error state after all retries fail
+            return null; // Return null to indicate failure
+          }
+          // Wait 1 second before retrying
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    };
 
-      // Fetch migration active status (true/false)
-      const migrationActive = await migrationContract.call("isMigrationActive");
-      setIsMigrationActive(migrationActive);
+    // Delay function to space out calls
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      // Fetch new token address
-      const newTok = await migrationContract.call("newToken");
-      setNewToken(newTok);
+    // Fetch each piece of data independently with delays
+    const burnAddr = await callContract(setBurnAddress, burnAddress, migrationContract, "BURN_ADDRESS");
+    await delay(1000);
 
-      // Fetch old token address
-      const oldTok = await migrationContract.call("oldToken");
-      setOldToken(oldTok);
+    await callContract(
+      setExchangeRateNumerator,
+      exchangeRateNumerator,
+      migrationContract,
+      "EXCHANGE_RATE_NUMERATOR"
+    ).then((result) => result && setExchangeRateNumerator(result.toString()));
+    await delay(1000);
 
-      // Fetch paused status (true/false)
-      const paused = await migrationContract.call("paused");
-      setIsPaused(paused);
+    await callContract(
+      setExchangeRateDenominator,
+      exchangeRateDenominator,
+      migrationContract,
+      "EXCHANGE_RATE_DENOMINATOR"
+    ).then((result) => result && setExchangeRateDenominator(result.toString()));
+    await delay(1000);
 
-      // Fetch balance of old tokens at burn address, normalize from wei to KILT
-      const bal = await oldKiltContract.call("balanceOf", [burnAddr]);
-      const balanceValue = bal?._hex ? BigInt(bal._hex) : BigInt(bal); // Handle hex or bigint output
-      const normalized = Number(balanceValue) / 10 ** 18; // Convert from wei (18 decimals)
-      setBurnAddressBalance(normalized);
-    } catch (err) {
-      // Log error and set all states to "Error" for user feedback
-      console.error("Data fetch error:", err.message);
-      setBurnAddress("Error");
-      setExchangeRateNumerator("Error");
-      setExchangeRateDenominator("Error");
-      setIsMigrationActive("Error");
-      setNewToken("Error");
-      setOldToken("Error");
-      setIsPaused("Error");
+    await callContract(setIsMigrationActive, isMigrationActive, migrationContract, "isMigrationActive");
+    await delay(1000);
+
+    await callContract(setNewToken, newToken, migrationContract, "newToken");
+    await delay(1000);
+
+    await callContract(setOldToken, oldToken, migrationContract, "oldToken");
+    await delay(1000);
+
+    await callContract(setIsPaused, isPaused, migrationContract, "paused");
+    await delay(1000);
+
+    // Fetch burn address balance only if burn address was successfully fetched
+    if (burnAddr && burnAddr !== "Error") {
+      await callContract(
+        setBurnAddressBalance,
+        burnAddressBalance,
+        oldKiltContract,
+        "balanceOf",
+        [burnAddr]
+      ).then((result) => {
+        if (result) {
+          const balanceValue = result?._hex ? BigInt(result._hex) : BigInt(result);
+          const normalized = Number(balanceValue) / 10 ** 15; // Convert from wei
+          setBurnAddressBalance(normalized);
+        }
+      });
+    } else {
       setBurnAddressBalance("Error");
     }
   };
@@ -128,16 +171,21 @@ export default function Dashboard() {
     fetchFunction();
   };
 
-  // Effect to fetch all data on component mount or when contracts load
+  // Effect to fetch data when contracts are ready
   useEffect(() => {
-    fetchAllData();
-  }, [migrationContract, oldKiltContract]); // Dependencies ensure fetch runs when contracts are ready
+    if (migrationContract && oldKiltContract && !hasFetched) {
+      console.log("useEffect triggering fetchAllData due to contracts being ready");
+      fetchAllData();
+    }
+  }, [migrationContract, oldKiltContract, hasFetched]);
 
-  // Calculate percentage of total supply burned for Migration Progress
+// Calculate percentage of total supply burned for Migration Progress
   const calculatePercentage = () => {
-    if (burnAddressBalance === null || burnAddressBalance === "Error") return "N/A"; // Handle loading or error states
-    const percentage = (burnAddressBalance / TOTAL_KILT_SUPPLY) * 100; // Convert to percentage
-    return percentage.toFixed(2); // Round to 2 decimal places
+    if (burnAddressBalance === null || burnAddressBalance === "Error") return "N/A";
+    const treasuryAmount = 7764239; 
+    const totalBurned = burnAddressBalance + treasuryAmount; 
+    const percentage = (totalBurned / TOTAL_KILT_SUPPLY) * 100;
+    return percentage.toFixed(2); 
   };
 
   // Render the dashboard UI
@@ -152,10 +200,28 @@ export default function Dashboard() {
       minHeight: "100vh", // Full viewport height
       fontFamily: "Arial, sans-serif" // Consistent font
     }}>
-      {/* Header with KILT logo */}
-      <header style={{ padding: "20px", textAlign: "center", backgroundColor: "#D73D80", color: "#fff" }}>
-        <img src="/KILT-Horizontal-black.png" alt="KILT Logo" style={{ width: "200px", height: "auto" }} />
-      </header>
+    
+<header style={{
+  padding: "20px 20px 20px 20px",
+  backgroundColor: "rgba(215, 61, 128, 0.5)",
+  color: "#fff"
+}}>
+  <div style={{
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 20px",
+    display: "flex",
+    justifyContent: "flex-start"
+  }}>
+    <Image
+      src="/KILT-Horizontal-white.png"
+      alt="KILT Logo"
+      width={200}
+      height={40}
+      style={{ height: "auto" }}
+    />
+  </div>
+</header>
 
       <main>
         <div className={styles.container}> {/* Container for layout consistency */}
@@ -163,12 +229,12 @@ export default function Dashboard() {
           <div style={{ textAlign: "center", margin: "20px 0" }}>
             <p style={{ fontSize: "32px", fontWeight: "bold" }}>Migration Dashboard</p>
             <p style={{ color: "#fff" }}>
-              <span style={{ fontWeight: "bold" }}>Migration Contract: </span>0xF92e735Fd5410Ccd7710Af0C0897F7389A39C303
+              <span style={{ fontWeight: "bold" }}>Migration Contract: </span>0x4A62F30d95a8350Fc682642A455B299C074B3B8c
             </p>
             {/* Button to refresh all data except whitelist */}
             <button
               onClick={(e) => handleButtonClick(e, fetchAllData)} // Trigger bounce and fetch
-              className={styles.card} // Apply card styles from CSS module
+              className={styles.card} // Apply card styles19: Apply card styles from CSS module
               style={{
                 margin: "10px auto", // Center horizontally
                 padding: "10px 20px", // Consistent padding
@@ -188,7 +254,7 @@ export default function Dashboard() {
           {/* Loading indicator while contracts initialize */}
           {migrationLoading && <p style={{ textAlign: "center", color: "#fff" }}>Loading contract...</p>}
 
-          {/* Migration Progress card */}
+{/* Migration Progress card */}
           <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
             <div style={{ background: "rgba(19, 87, 187, 0.65)", padding: "15px", borderRadius: "8px", width: "600px", textAlign: "left", color: "#fff" }}>
               <div>
@@ -197,7 +263,7 @@ export default function Dashboard() {
                   {oldKiltLoading || migrationLoading ? "Contract loading..." // Show loading state
                     : burnAddressBalance === null ? "Loading..." // Initial load
                     : burnAddressBalance === "Error" ? "Failed to load" // Error state
-                    : `${burnAddressBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} KILT / ${calculatePercentage()}%`} {/* Formatted balance and percentage */}
+                    : `${(burnAddressBalance + 7764239).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} KILT / ${calculatePercentage()}%`} {/* Formatted balance with pre-burned amount and percentage */}
                 </span>
               </div>
             </div>
@@ -298,15 +364,15 @@ export default function Dashboard() {
           <div style={{ marginBottom: "10px" }}>
             <Link href="/" className={styles.footerLink} style={{ color: "#fff", fontSize: "28px" }}>→Portal</Link> {/* Link back to Home page */}
           </div>
-          <a href="https://www.kilt.io/imprint" className={styles.footerLink}>Imprint</a>
+          <a href="https://www.kilt.io/imprintclaymore" className={styles.footerLink}>Imprint</a>
           {" | "}
-          <a href="https://www.kilt.io/privacy-policy" className={styles.footerLink}>Privacy Policy</a>
+          <a href="https://www.kilt.io/privacy-policyclaymore" className={styles.footerLink}>Privacy Policy</a>
           {" | "}
-          <a href="https://www.kilt.io/disclaimer" className={styles.footerLink}>Disclaimer</a>
+          <a href="https://www.kilt.io/disclaimerclaymore" className={styles.footerLink}>Disclaimer</a>
           {" | "}
           <a href="https://www.kilt.io" className={styles.footerLink}>Homepage</a>
           {" | "}
-          <a href="https://www.kilt.io" className={styles.footerLink}>Security Audit</a>
+          <a href="https://skynet.certik.com/projects/kilt-protocol" className={styles.footerLink}>Security Audit</a>
         </div>
       </footer>
 

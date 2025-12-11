@@ -1,14 +1,17 @@
+
 import { useState, useEffect, useRef } from "react";
 import { ConnectWallet, useAddress, useContract, useNetworkMismatch, useSwitchChain } from "@thirdweb-dev/react";
 import Link from "next/link";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import styles from "../styles/Home.module.css";
+
 const OLD_KILT_ABI = [
   { constant: true, inputs: [{ name: "owner", type: "address" }], name: "balanceOf", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
   { constant: false, inputs: [{ name: "spender", type: "address" }, { name: "value", type: "uint256" }], name: "approve", outputs: [{ name: "", type: "bool" }], stateMutability: "nonpayable", type: "function" },
   { constant: true, inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], name: "allowance", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" }
 ];
+
 const MIGRATION_ABI = [
   { constant: true, inputs: [], name: "BURN_ADDRESS", outputs: [{ name: "", type: "address" }], stateMutability: "view", type: "function" },
   { constant: true, inputs: [], name: "EXCHANGE_RATE_NUMERATOR", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
@@ -20,6 +23,7 @@ const MIGRATION_ABI = [
   { constant: true, inputs: [{ name: "addr", type: "address" }], name: "whitelist", outputs: [{ name: "", type: "bool" }], stateMutability: "view", type: "function" },
   { constant: false, inputs: [{ name: "amount", type: "uint256" }], name: "migrate", outputs: [], stateMutability: "nonpayable", type: "function" }
 ];
+
 export default function Home() {
   const address = useAddress();
   const switchChain = useSwitchChain();
@@ -33,8 +37,8 @@ export default function Home() {
   const [isChecked, setIsChecked] = useState(false);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [termsContent, setTermsContent] = useState("Loading terms...");
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
   const scrollRef = useRef(null);
+
   const { contract: oldKiltContract, isLoading: contractLoading } = useContract(
     "0x9E5189a77f698305Ef76510AFF1C528cff48779c",
     OLD_KILT_ABI
@@ -47,9 +51,11 @@ export default function Home() {
     "0x4A62F30d95a8350Fc682642A455B299C074B3B8c",
     MIGRATION_ABI
   );
+
   useEffect(() => {
     console.log("Network mismatch status:", isNetworkMismatch);
   }, [isNetworkMismatch]);
+
   const fetchBalance = async () => {
     if (!address || !oldKiltContract) {
       setBalance(null);
@@ -65,6 +71,7 @@ export default function Home() {
       setBalance("Error");
     }
   };
+
 const fetchNewBalance = async () => {
   if (!address || !newKiltContract) {
     setNewBalance(null);
@@ -80,10 +87,12 @@ const fetchNewBalance = async () => {
     setNewBalance("Error");
   }
 };
+
   useEffect(() => {
     fetchBalance();
     fetchNewBalance();
   }, [address, oldKiltContract, newKiltContract]);
+
   useEffect(() => {
     const handleScroll = () => {
       const element = scrollRef.current;
@@ -98,6 +107,7 @@ const fetchNewBalance = async () => {
       return () => scrollElement.removeEventListener("scroll", handleScroll);
     }
   }, []);
+
   useEffect(() => {
     const fetchTerms = async () => {
       try {
@@ -112,6 +122,7 @@ const fetchNewBalance = async () => {
     };
     fetchTerms();
   }, []);
+
   useEffect(() => {
     if (!oldKiltContract || !address || !amount || Number(amount) <= 0) {
       setIsApproved(false);
@@ -132,6 +143,7 @@ const fetchNewBalance = async () => {
     };
     checkAllowance();
   }, [address, oldKiltContract, amount]);
+
   const handleApprove = async () => {
     if (!oldKiltContract || !amount || !address) return;
     const weiAmount = BigInt(Math.floor(Number(amount) * 10 ** 15)).toString();
@@ -152,6 +164,7 @@ const fetchNewBalance = async () => {
       setIsProcessing(false);
     }
   };
+
   const handleMigrate = async () => {
     if (!migrationContract || !amount || !address) return;
     const weiAmount = BigInt(Math.floor(Number(amount) * 10 ** 15)).toString();
@@ -176,6 +189,7 @@ const fetchNewBalance = async () => {
       setIsProcessing(false);
     }
   };
+
   const handleButtonClick = (e) => {
     if (Number(amount) <= 0 || Number(amount) > balance) {
       alert("Amount must be positive and less than or equal to your balance.");
@@ -190,16 +204,19 @@ const fetchNewBalance = async () => {
       handleApprove();
     }
   };
+
   const handleProceed = () => {
     if (isChecked && scrolledToBottom) {
       setShowOverlay(false);
     }
   };
+
   const handleCheckboxChange = (e) => {
     if (scrolledToBottom) {
       setIsChecked(e.target.checked);
     }
   };
+
   const handleSwitchNetwork = async () => {
     if (switchChain) {
       try {
@@ -211,28 +228,9 @@ const fetchNewBalance = async () => {
       }
     }
   };
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const closing = new Date('2025-08-28T12:00:00Z');
-      const difference = closing - now;
-      if (difference > 0) {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        return { days, hours, minutes };
-      } else {
-        return { days: 0, hours: 0, minutes: 0 };
-      }
-    };
-    setTimeLeft(calculateTimeLeft());
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+
   return (
-    <div style={{
+    <div style={{ 
       backgroundImage: "url('/tartanbackground.png')",
       backgroundColor: "#000",
       backgroundSize: "cover",
@@ -281,12 +279,12 @@ const fetchNewBalance = async () => {
             >
               <ReactMarkdown>{termsContent}</ReactMarkdown>
             </div>
-            <div style={{
-              marginBottom: "20px",
-              textAlign: "left",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
+            <div style={{ 
+              marginBottom: "20px", 
+              textAlign: "left", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center" 
             }}>
               <input
                 type="checkbox"
@@ -316,6 +314,7 @@ const fetchNewBalance = async () => {
           </div>
         </div>
       )}
+
 <header style={{
   padding: "20px 20px 20px 20px",
   backgroundColor: "rgba(215, 61, 128, 0.5)",
@@ -337,30 +336,18 @@ const fetchNewBalance = async () => {
     />
   </div>
 </header>
+
       <main style={{ display: "flex", maxWidth: "1200px", margin: "20px auto", padding: "0 20px" }}>
 {/* Left Column */}
-<div style={{ flex: "1", paddingRight: "20px", textAlign: "left", color: "#fff" }}>
-  <p style={{ fontSize: "32px", fontWeight: "bold" }}>KILT Token Migration</p>
-  <p>KILT is migrating to a new contract on Base.</p>
-  <p>The migration window will open at 1200 UTC on Thursday June 19th and remain open for 10 weeks, closing at 1200 UTC on Thursday August 28th. All holders must migrate their tokens within this timeframe or their tokens will be lost.
-  This portal allows you to migrate your tokens from the old Base contract to the new Base contract. Tokens on Polkadot or Ethereum must first be bridged to Base, as detailed in the <Link href="https://medium.com/kilt-protocol/kilt-token-migration-guide-4ae8a5b686d6" style={{ color: "#fff", textDecoration: "underline" }}>Migration Guide</Link>.</p>
-  <p>Before using this portal, please carefully read the <Link href="https://medium.com/kilt-protocol/kilt-token-migration-guide-4ae8a5b686d6" style={{ color: "#fff", textDecoration: "underline" }}>Migration Guide</Link> in full.</p>
-  <div style={{
-    background: "rgba(215, 61, 128, 0.5)",
-    padding: "20px",
-    borderRadius: "8px",
-    marginTop: "20px",
-    textAlign: "center"
-  }}>
-    <h2 style={{ color: "#fff", marginBottom: "10px" }}>The migration window closes in:</h2>
-    <p style={{ fontSize: "48px", fontWeight: "bold", color: "#fff" }}>
-      {timeLeft.days}d : {timeLeft.hours}h : {timeLeft.minutes}m
-    </p>
-    <p style={{ fontSize: "24px", color: "#fff" }}>
-      at 1200 UTC, August 28th
-    </p>
-  </div>
-</div>
+        <div style={{ flex: "1", paddingRight: "20px", textAlign: "left", color: "#fff" }}>
+          <p style={{ fontSize: "32px", fontWeight: "bold" }}>KILT Token Migration</p>
+          <p>KILT is migrating to a new contract on Base.</p>
+          <p>The migration window will open at 1200 UTC on Wednesday June 18th and remain open for at least 10 weeks. All holders must migrate their tokens within this timeframe or their tokens will be lost.
+          This portal allows you to migrate your tokens from the old Base contract to the new Base contract.</p>
+          <p>Before using this portal, please carefully read the Migration Guide in full.</p>
+        </div>
+
+
 {/* Right Column */}
 <br /><br />
 <div style={{ flex: "1", paddingLeft: "20px" }}>
@@ -371,7 +358,7 @@ const fetchNewBalance = async () => {
     textAlign: "center",
     color: "#fff",
     position: "relative",
-    marginTop: "20px"
+  marginTop: "20px"
   }}>
     <div style={{
       position: "absolute",
@@ -379,42 +366,15 @@ const fetchNewBalance = async () => {
       left: "20px",
       fontSize: "32px",
       fontWeight: "bold",
-      color: "#fff",
-      zIndex: 0
+      color: "#fff"
     }}>
       Migration Portal
     </div>
-    <div style={{
-      position: "absolute",
-      top: "20px",
-      right: "20px",
-      zIndex: 0
-    }}>
+
+    <div style={{ position: "absolute", top: "20px", right: "20px" }}>
       <ConnectWallet />
     </div>
-    <div style={{
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(19, 87, 187, 0.8)",
-      zIndex: 1,
-      borderRadius: "8px"
-    }}>
-      <div style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        fontSize: "32px",
-        fontWeight: "bold",
-        color: "#fff",
-        zIndex: 2
-      }}>
-        Migration Closed
-      </div>
-    </div>
+
     {address && isNetworkMismatch && (
       <div style={{
         background: "#D73D80",
@@ -422,8 +382,7 @@ const fetchNewBalance = async () => {
         borderRadius: "8px",
         margin: "20px 0",
         textAlign: "center",
-        color: "#fff",
-        zIndex: 0
+        color: "#fff"
       }}>
         <p style={{ fontWeight: "bold" }}>
           Wrong Network Detected
@@ -449,7 +408,7 @@ const fetchNewBalance = async () => {
       </div>
     )}
     <br />
-    
+      
     <div style={{
       background: "#fff",
       margin: "80px 10px 20px 10px",
@@ -460,8 +419,7 @@ const fetchNewBalance = async () => {
       color: "#000",
       textAlign: "left",
       display: "flex",
-      alignItems: "center",
-      zIndex: 0
+      alignItems: "center"
     }}>
       <div style={{ position: "absolute", left: "10px" }}>
         <span style={{ fontWeight: "bold" }}>Old KILT</span>
@@ -495,7 +453,8 @@ const fetchNewBalance = async () => {
         }}
       />
     </div>
-    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px", zIndex: 0 }}>
+
+    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px" }}>
       {address && (
         <button
           onClick={(e) => {
@@ -539,18 +498,18 @@ const fetchNewBalance = async () => {
       </span>
     </div>
     <br />
-    <div style={{
-      textAlign: "center",
-      margin: "10px 0",
-      fontWeight: "bold",
-      color: "#fff",
-      zIndex: 0
+    <div style={{ 
+      textAlign: "center", 
+      margin: "10px 0", 
+      fontWeight: "bold", 
+      color: "#fff"
     }}>
       Migration Ratio: 1 to 1.75
     </div>
-<svg width="24" height="24" viewBox="0 0 24 38" fill="none" stroke="#fff" strokeWidth="3" style={{ zIndex: 0 }}>
+<svg width="24" height="24" viewBox="0 0 24 38" fill="none" stroke="#fff" strokeWidth="3">
     <path d="M12 5v28M5 26l7 7 7-7"/>
   </svg>
+  
     <div style={{
       background: "#fff",
       margin: "20px 10px",
@@ -561,8 +520,7 @@ const fetchNewBalance = async () => {
       color: "#000",
       textAlign: "left",
       display: "flex",
-      alignItems: "center",
-      zIndex: 0
+      alignItems: "center"
     }}>
       <div style={{ position: "absolute", left: "10px" }}>
         <span style={{ fontWeight: "bold" }}>New KILT</span>
@@ -582,7 +540,8 @@ const fetchNewBalance = async () => {
           : "0.0"}
       </div>
     </div>
-    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px", zIndex: 0 }}>
+
+    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px" }}>
       <span style={{ fontWeight: "bold", color: "#fff" }}>
         Balance: </span>
       <span style={{ color: "#fff", fontWeight: "normal", fontSize: "16px" }}>
@@ -599,7 +558,8 @@ const fetchNewBalance = async () => {
           )}
       </span>
     </div>
-    <div style={{ margin: "20px 0", zIndex: 0 }}>
+
+    <div style={{ margin: "20px 0" }}>
       <div style={{ display: "flex", justifyContent: "center" }}>
         <button
           onClick={handleButtonClick}
@@ -641,28 +601,9 @@ const fetchNewBalance = async () => {
   </div>
 </div>
       </main>
-      <footer style={{ padding: "10px", textAlign: "center", color: "#666", fontSize: "14px" }}>
-        <div>
-          <div style={{ marginBottom: "10px" }}>
-            <Link
-              href="/dashboard"
-              className={styles.footerLink2}
-              style={{ fontSize: "28px" }}
-            >
-              →Dashboard
-            </Link>
-          </div>
-          <a href="https://www.kilt.io/imprintclaymore" className={styles.footerLink}>Imprint</a>
-          {" | "}
-          <a href="https://www.kilt.io/privacy-policyclaymore" className={styles.footerLink}>Privacy Policy</a>
-          {" | "}
-          <a href="https://www.kilt.io/disclaimerclaymore" className={styles.footerLink}>Disclaimer</a>
-          {" | "}
-          <a href="https://www.kilt.io" className={styles.footerLink}>Homepage</a>
-          {" | "}
-          <a href="https://skynet.certik.com/projects/kilt-protocol" className={styles.footerLink}>Security Audit</a>
-        </div>
-      </footer>
+
+
+
       <style jsx>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }

@@ -379,41 +379,12 @@ const fetchNewBalance = async () => {
       left: "20px",
       fontSize: "32px",
       fontWeight: "bold",
-      color: "#fff",
-      zIndex: 0
+      color: "#fff"
     }}>
       Migration Portal
     </div>
-    <div style={{
-      position: "absolute",
-      top: "20px",
-      right: "20px",
-      zIndex: 0
-    }}>
+    <div style={{ position: "absolute", top: "20px", right: "20px" }}>
       <ConnectWallet />
-    </div>
-    <div style={{
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(19, 87, 187, 0.8)",
-      zIndex: 1,
-      borderRadius: "8px"
-    }}>
-      <div style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        fontSize: "32px",
-        fontWeight: "bold",
-        color: "#fff",
-        zIndex: 2
-      }}>
-        Migration Closed
-      </div>
     </div>
     {address && isNetworkMismatch && (
       <div style={{
@@ -422,8 +393,7 @@ const fetchNewBalance = async () => {
         borderRadius: "8px",
         margin: "20px 0",
         textAlign: "center",
-        color: "#fff",
-        zIndex: 0
+        color: "#fff"
       }}>
         <p style={{ fontWeight: "bold" }}>
           Wrong Network Detected
@@ -449,7 +419,7 @@ const fetchNewBalance = async () => {
       </div>
     )}
     <br />
-    
+     
     <div style={{
       background: "#fff",
       margin: "80px 10px 20px 10px",
@@ -460,8 +430,7 @@ const fetchNewBalance = async () => {
       color: "#000",
       textAlign: "left",
       display: "flex",
-      alignItems: "center",
-      zIndex: 0
+      alignItems: "center"
     }}>
       <div style={{ position: "absolute", left: "10px" }}>
         <span style={{ fontWeight: "bold" }}>Old KILT</span>
@@ -495,7 +464,7 @@ const fetchNewBalance = async () => {
         }}
       />
     </div>
-    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px", zIndex: 0 }}>
+    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px" }}>
       {address && (
         <button
           onClick={(e) => {
@@ -543,14 +512,14 @@ const fetchNewBalance = async () => {
       textAlign: "center",
       margin: "10px 0",
       fontWeight: "bold",
-      color: "#fff",
-      zIndex: 0
+      color: "#fff"
     }}>
       Migration Ratio: 1 to 1.75
     </div>
-<svg width="24" height="24" viewBox="0 0 24 38" fill="none" stroke="#fff" strokeWidth="3" style={{ zIndex: 0 }}>
+<svg width="24" height="24" viewBox="0 0 24 38" fill="none" stroke="#fff" strokeWidth="3">
     <path d="M12 5v28M5 26l7 7 7-7"/>
   </svg>
+ 
     <div style={{
       background: "#fff",
       margin: "20px 10px",
@@ -561,8 +530,7 @@ const fetchNewBalance = async () => {
       color: "#000",
       textAlign: "left",
       display: "flex",
-      alignItems: "center",
-      zIndex: 0
+      alignItems: "center"
     }}>
       <div style={{ position: "absolute", left: "10px" }}>
         <span style={{ fontWeight: "bold" }}>New KILT</span>
@@ -582,7 +550,7 @@ const fetchNewBalance = async () => {
           : "0.0"}
       </div>
     </div>
-    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px", zIndex: 0 }}>
+    <div style={{ textAlign: "right", marginTop: "5px", marginRight: "20px" }}>
       <span style={{ fontWeight: "bold", color: "#fff" }}>
         Balance: </span>
       <span style={{ color: "#fff", fontWeight: "normal", fontSize: "16px" }}>
@@ -599,7 +567,7 @@ const fetchNewBalance = async () => {
           )}
       </span>
     </div>
-    <div style={{ margin: "20px 0", zIndex: 0 }}>
+    <div style={{ margin: "20px 0" }}>
       <div style={{ display: "flex", justifyContent: "center" }}>
         <button
           onClick={handleButtonClick}
